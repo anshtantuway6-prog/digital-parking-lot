@@ -1,13 +1,13 @@
-# digital-parking-lot
 import streamlit as st, mysql.connector, pandas as pd, matplotlib.pyplot as plt
 import hashlib, secrets, math, os
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
-
-try:
+ 
+try:  # online: values come from Streamlit "Secrets"; on your own computer: local MySQL
     DB = dict(st.secrets["mysql"])
 except Exception:
-    DB = dict(host="localhost", user="root", password="", database="digital_parking")RATE = {"Car": 20, "Bike": 10, "Scooty": 10}          # rupees per hour
+    DB = dict(host="localhost", user="root", password=os.environ.get("DPL_DB_PASSWORD", ""), database="digital_parking")
+RATE = {"Car": 20, "Bike": 10, "Scooty": 10}          # rupees per hour
 ICON = {"Car": "🚗", "Bike": "🏍️", "Scooty": "🛵"}
 BRANDS = {  # brand name -> logo name on simpleicons.org ("" = no logo, emoji is shown)
     "Car": {"Rolls-Royce": "rollsroyce", "BMW": "bmw", "Audi": "audi", "Mercedes": "mercedes",
@@ -20,7 +20,7 @@ BRANDS = {  # brand name -> logo name on simpleicons.org ("" = no logo, emoji is
              "Hero": "heromotocorp", "Suzuki": "suzuki", "Other": ""},
     "Scooty": {"Honda": "honda", "TVS": "tvsmotor", "Suzuki": "suzuki", "Yamaha": "yamaha",
                "Hero": "heromotocorp", "Other": ""}}
-
+ 
 st.set_page_config(page_title="Digital Parking Lot", page_icon="🅿️", layout="wide")
 st.markdown("""<style>
 .stApp{font-family:'Segoe UI',Arial,sans-serif;font-size:14px}
@@ -34,11 +34,11 @@ div[role=radiogroup] label{background:#1a1a1a;border:1px solid #333;border-radiu
 .busy{border-color:#FFC107}
 .hero{text-align:center}
 </style>""", unsafe_allow_html=True)
-
+ 
 LOGO = """<svg width="90" height="90" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#FFC107"/>
 <path d="M34 78V24h18c13 0 20 7 20 17s-7 17-20 17H44" fill="none" stroke="#0b0b0b" stroke-width="10" stroke-linecap="round"/></svg>"""
-
-
+ 
+ 
 # ---------- database helpers ----------
 def run(sql, args=(), fetch=True):
     con = mysql.connector.connect(**DB)
@@ -52,34 +52,34 @@ def run(sql, args=(), fetch=True):
     cur.close()
     con.close()
     return out
-
-
+ 
+ 
 def hp(pw, salt):
     return hashlib.pbkdf2_hmac("sha256", pw.encode(), bytes.fromhex(salt), 200000).hex()
-
-
+ 
+ 
 def sh(t):
     return hashlib.sha256(t.encode()).hexdigest()
-
-
+ 
+ 
 def set_cookie(val, days):
     components.html(f"<script>window.parent.document.cookie='dpl_trust={val}; max-age={days*86400}; path=/; SameSite=Lax';</script>", height=0)
-
-
+ 
+ 
 def is_trusted():
     t = st.context.cookies.get("dpl_trust")
     if not t:
         return False
     return not run("SELECT 1 FROM trusted_devices WHERE token_hash=%s AND expires>%s", (sh(t), datetime.now())).empty
-
-
+ 
+ 
 def newfig():
     fig, ax = plt.subplots(figsize=(4.2, 3))
     fig.patch.set_facecolor("#161616")
     ax.set_facecolor("#161616")
     return fig, ax
-
-
+ 
+ 
 def show(fig, ax, title):
     ax.set_title(title, color="#FFC107", fontsize=10)
     ax.tick_params(colors="#ddd", labelsize=8)
@@ -88,8 +88,8 @@ def show(fig, ax, title):
         s.set_color("#444")
     st.pyplot(fig)
     plt.close(fig)
-
-
+ 
+ 
 # ---------- pages ----------
 def home():
     st.markdown(f'<div class="hero"><h2>Namaste 🙏, Welcome to Digital Parking Lot</h2>{LOGO}'
@@ -100,8 +100,8 @@ def home():
     a.metric("Total slots", len(s))
     b.metric("Occupied", used)
     c.metric("Free", len(s) - used)
-
-
+ 
+ 
 def dashboard():
     st.header("Dashboard")
     b = run("SELECT s.slot_id, r.vehicle_no, r.vehicle_type, r.brand FROM slots s "
@@ -115,7 +115,7 @@ def dashboard():
             icon = f'<img src="https://cdn.simpleicons.org/{slug}/FFC107" width="28" height="28">' if slug else ICON[r.vehicle_type]
             cells += f'<div class="slot busy">{icon}<small>{r.vehicle_no}</small></div>'
     st.markdown(f'<div class="grid">{cells}</div>', unsafe_allow_html=True)
-
+ 
     st.subheader("Vehicle info")
     act = run("SELECT * FROM records WHERE exit_time IS NULL ORDER BY slot_id")
     if act.empty:
@@ -128,7 +128,7 @@ def dashboard():
                  f"**Destination:** {r.destination}  \n**Slot:** {r.slot_id}  \n**Entry:** {r.entry_time}  \n**Exit:** still parked")
         if r.photo_path and os.path.exists(r.photo_path):
             c2.image(r.photo_path, width=200)
-
+ 
     st.subheader("Analytics")
     df = run("SELECT * FROM records")
     if df.empty:
@@ -164,8 +164,8 @@ def dashboard():
             done.groupby(pd.to_datetime(done.exit_time).dt.date).fee.sum().plot(ax=ax, color="#FFC107", marker="o")
             show(fig, ax, "Revenue trend (Rs)")
     st.download_button("⬇ Export report (CSV)", df.to_csv(index=False), "parking_report.csv")
-
-
+ 
+ 
 def entry():
     st.header("Vehicle Entry")
     vt = st.radio("Vehicle type", list(RATE), horizontal=True, format_func=lambda v: f"{ICON[v]} {v}")
@@ -196,8 +196,8 @@ def entry():
             "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)", (owner, vno, vt, brand, dest, path, slot, datetime.now()), False)
         run("UPDATE slots SET is_occupied=1 WHERE slot_id=%s", (slot,), False)
         st.success(f"✅ {vno} parked at Slot {slot}")
-
-
+ 
+ 
 def exit_page():
     st.header("Vehicle Exit")
     with st.form("exit"):
@@ -216,8 +216,8 @@ def exit_page():
     run("UPDATE slots SET is_occupied=0 WHERE slot_id=%s", (int(r.slot_id),), False)
     st.success(f"✅ {vno} exited. Slot {r.slot_id} is free.")
     st.write(f"**Owner:** {r.owner}  \n**Time parked:** {hrs} hour(s) × Rs {RATE[r.vehicle_type]}  \n## Total fee: Rs {fee}")
-
-
+ 
+ 
 def admin():
     st.header("Admin")
     if not st.session_state.get("admin") and is_trusted():
@@ -241,7 +241,7 @@ def admin():
                 st.error("❌ Incorrect Password")
     if not st.session_state.get("admin"):
         return
-
+ 
     q = st.text_input("Search by vehicle number / owner")
     df = run("SELECT * FROM records ORDER BY id DESC")
     view = df
@@ -249,7 +249,7 @@ def admin():
         view = df[df.vehicle_no.str.contains(q.upper(), na=False) | df.owner.str.contains(q, case=False, na=False)]
     st.dataframe(view, use_container_width=True)
     st.download_button("⬇ Download full parking history (CSV)", df.to_csv(index=False), "parking_history.csv")
-
+ 
     rid = st.number_input("Record ID to delete", min_value=0, step=1)
     if st.button("🗑 Delete record") and rid:
         r = run("SELECT slot_id, exit_time FROM records WHERE id=%s", (int(rid),))
@@ -267,8 +267,8 @@ def admin():
         set_cookie("", 0)
         st.session_state.admin = False
         st.info("Logged out. This device is no longer trusted.")
-
-
+ 
+ 
 def contact():
     st.header("Contact")
     with st.form("contact", clear_on_submit=True):
@@ -276,8 +276,8 @@ def contact():
         if st.form_submit_button("Send") and n and m:
             run("INSERT INTO messages (name,email,message,created) VALUES (%s,%s,%s,%s)", (n, e, m, datetime.now()), False)
             st.success("Message sent. Thank you!")
-
-
+ 
+ 
 TEXT = {
     "About": "**Digital Parking Lot** is a parking management system that records vehicles, assigns slots, "
              "calculates fees and shows live analytics.\n\n**Tech stack:** MySQL, Pandas, Matplotlib, Streamlit.\n\n"
@@ -296,8 +296,9 @@ PAGES = {"Home": home, "Dashboard": dashboard, "Vehicle Entry": entry, "Vehicle 
          "FAQ": lambda: (st.header("FAQ"), st.markdown(TEXT["FAQ"])),
          "Privacy": lambda: (st.header("Privacy Policy"), st.markdown(TEXT["Privacy"])),
          "Terms": lambda: (st.header("Terms of Use"), st.markdown(TEXT["Terms"]))}
-
+ 
 page = st.radio("nav", list(PAGES), horizontal=True, label_visibility="collapsed")
 PAGES[page]()
 st.markdown('<hr><p style="text-align:center;color:#888;font-size:12px">About | Privacy | Terms &nbsp;·&nbsp; '
             'Developed by [Your Name]</p>', unsafe_allow_html=True)
+ 
