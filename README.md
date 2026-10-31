@@ -7,7 +7,7 @@ import streamlit.components.v1 as components
 try:
     DB = dict(st.secrets["mysql"])
 except Exception:
-    DB = dict(host="localhost", user="root", password="", database="digital_parking")         # rupees per hour
+    DB = dict(host="localhost", user="root", password="", database="digital_parking")RATE = {"Car": 20, "Bike": 10, "Scooty": 10}          # rupees per hour
 ICON = {"Car": "🚗", "Bike": "🏍️", "Scooty": "🛵"}
 BRANDS = {  # brand name -> logo name on simpleicons.org ("" = no logo, emoji is shown)
     "Car": {"Rolls-Royce": "rollsroyce", "BMW": "bmw", "Audi": "audi", "Mercedes": "mercedes",
