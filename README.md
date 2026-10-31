@@ -4,8 +4,10 @@ import hashlib, secrets, math, os
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 
-DB = dict(host="localhost", user="root", password="Password77*", database="digital_parking")
-RATE = {"Car": 20, "Bike": 10, "Scooty": 10}          # rupees per hour
+try:
+    DB = dict(st.secrets["mysql"])
+except Exception:
+    DB = dict(host="localhost", user="root", password="", database="digital_parking")         # rupees per hour
 ICON = {"Car": "🚗", "Bike": "🏍️", "Scooty": "🛵"}
 BRANDS = {  # brand name -> logo name on simpleicons.org ("" = no logo, emoji is shown)
     "Car": {"Rolls-Royce": "rollsroyce", "BMW": "bmw", "Audi": "audi", "Mercedes": "mercedes",
