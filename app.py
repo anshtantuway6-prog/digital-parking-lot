@@ -300,5 +300,5 @@ PAGES = {"Home": home, "Dashboard": dashboard, "Vehicle Entry": entry, "Vehicle 
 page = st.radio("nav", list(PAGES), horizontal=True, label_visibility="collapsed")
 PAGES[page]()
 st.markdown('<hr><p style="text-align:center;color:#888;font-size:12px">About | Privacy | Terms &nbsp;·&nbsp; '
-            'Developed by [Your Name]</p>', unsafe_allow_html=True)
+            'Developed by [Ansh Tantuway]</p>', unsafe_allow_html=True)
  
